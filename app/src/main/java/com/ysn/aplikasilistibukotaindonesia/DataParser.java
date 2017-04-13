@@ -1,0 +1,105 @@
+package com.ysn.aplikasilistibukotaindonesia;
+
+import android.util.Log;
+
+import com.google.android.gms.maps.model.LatLng;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+/**
+ * Created by root on 12/04/17.
+ */
+
+public class DataParser {
+
+    /*
+    * Receives a JSONObject and returns a list of lists containing latitude and longitude
+    * */
+    public List<List<HashMap<String, String>>> parse(JSONObject jsonObject) {
+        List<List<HashMap<String, String>>> routes = new ArrayList<>();
+        JSONArray jsonArrayRoutes;
+        JSONArray jsonArrayLegs;
+        JSONArray jsonArraySteps;
+
+        try {
+            jsonArrayRoutes = jsonObject.getJSONArray("routes");
+
+            // traversing all routes
+            for (int i = 0; i < jsonArrayRoutes.length(); i++) {
+                jsonArrayLegs = ((JSONObject) jsonArrayRoutes.get(i)).getJSONArray("legs");
+                List path = new ArrayList();
+
+                // traversing all legs
+                for (int j = 0; j < jsonArrayLegs.length(); j++) {
+                    jsonArraySteps = ((JSONObject) jsonArrayLegs.get(j)).getJSONArray("steps");
+
+                    // traversing all steps
+                    for (int k = 0; k < jsonArraySteps.length(); k++) {
+                        String polyline = "";
+                        polyline = (String) ((JSONObject) ((JSONObject) jsonArraySteps.get(k)).get("polyline")).get("points");
+                        List<LatLng> list = decodePoly(polyline);
+
+                        // traversing all points
+                        for (int l = 0; l < list.size(); l++) {
+                            HashMap<String, String> hm = new HashMap<>();
+                            hm.put("lat", Double.toString((list.get(l)).latitude));
+                            hm.put("lng", Double.toString((list.get(l)).longitude));
+                            path.add(hm);
+                        }
+                    }
+                    routes.add(path);
+                }
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return routes;
+    }
+
+    // method to decode polyline points
+    private List<LatLng> decodePoly(String encoded) {
+        List<LatLng> poly = new ArrayList<>();
+        int index = 0;
+        int len = encoded.length();
+        int lat = 0;
+        int lng = 0;
+
+        while (index < len) {
+            int b;
+            int shift = 0;
+            int result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+
+            } while (b >= 0x20);
+            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+
+            LatLng p = new LatLng((((double) lat / 1E5)), (((double) lng / 1E5)));
+            poly.add(p);
+            Log.d("DataParser", "latitude: " + p.latitude + " longitude: " + p.longitude);
+        }
+        return poly;
+    }
+
+}
